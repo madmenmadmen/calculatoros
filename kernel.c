@@ -8,6 +8,8 @@ const unsigned int multiboot_header[] = {
 #include <stdint.h>
 #include "io.h"
 
+int lang = 0;  // по умолчанию английский
+
 double parse_expr(const char* s, int* i);
 double parse_term(const char* s, int* i);
 double parse_factor(const char* s, int* i);
@@ -52,14 +54,34 @@ int current_bg = 0x00; // чёрный фон по умолчанию
 int current_fg = 0x07;   // белый текст по умолчанию
 int current_cursor = 0x0F; // белый яркий курсор по умолчанию
 
+// ========== СООБЩЕНИЯ ==========
 const char* msg_title = "=== Bare Metal Calculator ===\n";
-const char* msg_commands = "Commands: clear, cls, exit, r<number>\n";
-const char* msg_examples = "Examples: 10+5, 100-33, 6*7, 100/4, 17%%3, r3.14\n\n";
+const char* msg_commands = "Commands: help, clear, cls, exit\n";
+const char* msg_examples = "Examples: 10+5, 100-33, 6*7, 100/4, 17%%3, 2^3, sqrt(16)\n\n";
 const char* msg_prompt = "> ";
 const char* msg_result = "Result: ";
 const char* msg_error = "Error: Invalid expression!\n";
-const char* msg_error_format = "Use: number +-*/%% number or r<number>\n";
+const char* msg_error_format = "Use: number +-*/%% number or function\n";
 const char* msg_reboot = "Rebooting...\n";
+
+// Help text
+const char* msg_help =
+"Financial:\n"
+"  vat <sum> [rate]  - VAT (default 20%%)\n"
+"  pct <part> <total> - Percentage\n"
+"  rch <num> <digits> - Round to N digits\n"
+"  ceil <num> / floor <num> / abs <num>\n"
+"Stats:\n"
+"  sum / avg / min / max <n1> <n2> ...\n"
+"Math:\n"
+"  sqrt <num> / <expr> + - * / %% ^ and ()\n"
+"Variables:\n"
+"  var <name> = <value> / echo / type / list_vars / delete\n"
+"Interface:\n"
+"  bg-color / char-color / cursor-color <color>\n"
+"  clear / cls\n"
+"System:\n"
+"  time / help / exit\n";
 
 char scancode_table[128] = {
     0, 27, '1','2','3','4','5','6','7','8','9','0','-','=', '\b',
@@ -766,6 +788,7 @@ void cmd_time() {
 
 void kernel_main() {
     __asm__ volatile ("finit");
+
     clear();
     show_cursor();
     print(msg_title);
@@ -774,16 +797,6 @@ void kernel_main() {
 
     char input[64];
     double res;
-
-    double t = sqrt_fast(16.0);
-    print("sqrt(16) = ");
-    print_double(t);
-    print("\n");
-
-    t = sqrt_fast(2.0);
-    print("sqrt(2) = ");
-    print_double(t);
-    print("\n");
 
     while (1) {
         print(msg_prompt);
@@ -1168,6 +1181,11 @@ void kernel_main() {
             while (input[i] == ' ') i++;
 
             set_var(name, &input[i]);
+            continue;
+        }
+
+        if (streq(input, "help") || streq(input, "h")) {
+            print(msg_help);
             continue;
         }
 
