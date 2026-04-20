@@ -7,8 +7,10 @@ const unsigned int multiboot_header[] = {
 
 #include <stdint.h>
 #include "io.h"
-
-int lang = 0;  // по умолчанию английский
+#include "pit.h"
+#include "pic.h"
+#include "idt.h"
+#include "keyboard_buffer.h"
 
 double parse_expr(const char* s, int* i);
 double parse_term(const char* s, int* i);
@@ -22,7 +24,6 @@ void show_cursor();
 int cursor = 0;
 int shift = 0;
 int cursor_visible = 1;
-int cursor_timer = 0;
 
 char cursor_saved_char = ' ';
 char cursor_saved_attr = 0x07;
@@ -358,39 +359,31 @@ void list_vars() {
     }
 }
 
+// НОВАЯ ВЕРСИЯ read_line С ПРЕРЫВАНИЯМИ
 void read_line(char* buffer, int max_len) {
     int len = 0;   // длина строки
     int pos = 0;   // курсор внутри строки
-    cursor_timer = 0;
 
-    int line_start = cursor; // 💥 запомнили начало строки
+    int line_start = cursor; // запомнили начало строки
+
+    flush_keys();  // очищаем старые нажатия
 
     while (1) {
-
-        // мигание
-        cursor_timer++;
-        if (cursor_timer > 50000) {
-            cursor_timer = 0;
-
-            if (cursor_visible) {
-                hide_cursor();
-                cursor_visible = 0;
-            }
-            else {
-                show_cursor();
-                cursor_visible = 1;
-            }
+        // ЖДЁМ ПРЕРЫВАНИЕ вместо busy-wait
+        if (!has_key()) {
+            __asm__ volatile ("hlt");
+            continue;
         }
 
-        if (!(inb(0x64) & 1)) continue;
-
-        unsigned char scancode = inb(0x60);
+        unsigned char scancode = get_key();
 
         // ===== ARROWS =====
         if (scancode == 0xE0) {
-            unsigned char sc2;
-            while (!(inb(0x64) & 1));
-            sc2 = inb(0x60);
+            // Ждём второй скан-код через прерывания
+            while (!has_key()) {
+                __asm__ volatile ("hlt");
+            }
+            unsigned char sc2 = get_key();
 
             if (sc2 & 0x80) continue;
 
@@ -788,6 +781,15 @@ void cmd_time() {
 
 void kernel_main() {
     __asm__ volatile ("finit");
+
+    pic_remap();
+    idt_init();
+    init_pit();
+
+    pic_enable_irq(0);  // PIT
+    pic_enable_irq(1);  // клавиатура
+
+    __asm__ volatile ("sti");
 
     clear();
     show_cursor();
