@@ -1,0 +1,7 @@
+*.hZone.Identifier
+*.cZone.Identifier
+*.asmZone.Identifier
+*.o
+*.img
+*.log
+*.vdi
