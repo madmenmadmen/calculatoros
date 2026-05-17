@@ -174,7 +174,7 @@ asm lidt [0]           ; → убивает IDT
 `mount`, `umount`, `mkpart`, `delpart`, `format`, `showpart`
 `symlink`, `readlink`
 `bg-color`, `char-color`, `cursor-color`, `clear`, `cls`
-`asm`, `time`, `help`, `exit`
+`asm`, `time`, `help`, `exit`, `hlink`, `unlink`
 
 ## 🛠️ Сборка и запуск
 
